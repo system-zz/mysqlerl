@@ -40,20 +40,14 @@ terminate(Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-handle_call(#sql_query{q = Query}, _From, State) ->
-    {reply, make_request(State#state.ref, {sql_query, Query}), State};
-handle_call(Request, From, State) ->
-    io:format("DEBUG: got unknown call from ~p: ~p~n", [From, Request]),
-    {noreply, State}.
+handle_call(Request, _From, State) ->
+    {reply, make_request(State#state.ref, Request), State}.
 
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
 handle_info({'EXIT', _Ref, Reason}, State) ->
-    {stop, #port_closed{reason = Reason}, State};
-handle_info(Info, State) ->
-    io:format("DEBUG: got unknown info: ~p~n", [Info]),
-    {noreply, State}.
+    {stop, #port_closed{reason = Reason}, State}.
 
 helper() ->
     case code:priv_dir(mysqlerl) of
@@ -63,6 +57,7 @@ helper() ->
     filename:join([PrivDir, "mysqlerl"]).
 
 make_request(Ref, Req) ->
+    io:format("DEBUG: Sending request: ~p~n", [Req]),
     port_command(Ref, term_to_binary(Req)),
     receive
         {Ref, {data, Res}} -> binary_to_term(Res);

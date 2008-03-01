@@ -56,9 +56,9 @@ commit(Ref, CommitMode) ->
 %%              common_reason()
 %%     ok | {error, Reason}
 commit(Ref, commit, Timeout) ->
-    mysqlerl_connection:sql_query(Ref, "COMMIT", Timeout);
+    gen_server:call(Ref, #sql_commit{}, Timeout);
 commit(Ref, rollback, Timeout) ->
-    mysqlerl_connection:sql_query(Ref, "ROLLBACK", Timeout).
+    gen_server:call(Ref, #sql_rollback{}, Timeout).
 
 %% Arguments:
 %%     Host = string()

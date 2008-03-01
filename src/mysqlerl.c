@@ -20,6 +20,8 @@ const char *LOGPATH = "/tmp/mysqlerl.log";
 static FILE *logfile = NULL;
 
 const char *QUERY_MSG = "sql_query";
+const char *COMMIT_MSG = "sql_commit";
+const char *ROLLBACK_MSG = "sql_rollback";
 
 typedef u_int32_t msglen_t;
 
@@ -174,7 +176,8 @@ dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
   ETERM *tag;
 
   tag = erl_element(1, msg->cmd);
-  if (strncmp((char *)ERL_ATOM_PTR(tag), QUERY_MSG, sizeof(QUERY_MSG)) == 0) {
+  if (strncmp((char *)ERL_ATOM_PTR(tag),
+              QUERY_MSG, strlen(QUERY_MSG)) == 0) {
     ETERM *query, *resp;
     char *q, *buf;
     int buflen;
@@ -184,14 +187,39 @@ dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
     erl_free_term(query);
 
     logmsg("DEBUG: got query msg: %s.", q);
-    resp = erl_format("{ok, ~s}", q);
+    resp = erl_format("{query, ~s}", q);
     erl_free(q);
 
     buflen = erl_term_len(resp);
     buf = (char *)malloc(buflen);
     erl_encode(resp, (unsigned char *)buf);
     erl_free_term(resp);
+    write_cmd(buf, buflen);
+    free(buf);
+  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
+                     COMMIT_MSG, strlen(COMMIT_MSG)) == 0) {
+    ETERM *resp;
+    char *buf;
+    int buflen;
 
+    resp = erl_format("{ok, commit}");
+    buflen = erl_term_len(resp);
+    buf = (char *)malloc(buflen);
+    erl_encode(resp, (unsigned char *)buf);
+    erl_free_term(resp);
+    write_cmd(buf, buflen);
+    free(buf);
+  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
+                     ROLLBACK_MSG, strlen(ROLLBACK_MSG)) == 0) {
+    ETERM *resp;
+    char *buf;
+    int buflen;
+
+    resp = erl_format("{ok, rollback}");
+    buflen = erl_term_len(resp);
+    buf = (char *)malloc(buflen);
+    erl_encode(resp, (unsigned char *)buf);
+    erl_free_term(resp);
     write_cmd(buf, buflen);
     free(buf);
   } else {
