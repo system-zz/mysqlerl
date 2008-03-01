@@ -4,6 +4,8 @@
 -module(mysqlerl).
 -author('bjc@kublai.com').
 
+-include("mysqlerl.hrl").
+
 -export([test_start/0, test_msg/0]).
 
 -export([start/0, start/1, stop/0, commit/2, commit/3,
@@ -193,5 +195,5 @@ sql_query(Ref, SQLQuery) ->
 %% Returns:
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
-sql_query(_Ref, _SQLQuery, _Timeout) ->
-    ?NOTIMPLEMENTED.
+sql_query(Ref, SQLQuery, Timeout) ->
+    gen_server:call(Ref, #sql_query{q = SQLQuery}, Timeout).

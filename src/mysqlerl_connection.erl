@@ -1,16 +1,17 @@
 -module(mysqlerl_connection).
 -author('bjc@kublai.com').
 
+-include("mysqlerl.hrl").
+
 -behavior(gen_server).
 
--export([start_link/6, stop/1, sql_query/3]).
+-export([start_link/6, stop/1]).
 
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
 
 -record(state, {ref}).
 -record(port_closed, {reason}).
--record(sql_query, {q}).
 
 start_link(Host, Port, Database, User, Password, Options) ->
     gen_server:start_link(?MODULE, [Host, Port, Database,
@@ -18,9 +19,6 @@ start_link(Host, Port, Database, User, Password, Options) ->
 
 stop(Pid) ->
     gen_server:cast(Pid, stop).
-
-sql_query(Pid, Query, Timeout) ->
-    gen_server:call(Pid, #sql_query{q = Query}, Timeout).
 
 init([Host, Port, Database, User, Password, Options]) ->
     process_flag(trap_exit, true),
