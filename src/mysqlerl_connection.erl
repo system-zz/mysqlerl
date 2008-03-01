@@ -9,6 +9,8 @@
          handle_call/3, handle_cast/2, handle_info/2]).
 
 -define(QUERY_MSG, 0).
+-define(COMMIT_MSG, 1).
+-define(ROLLBACK_MSG, 2).
 -define(EXTENDED_MSG, 255).
 
 -record(state, {ref}).
@@ -30,7 +32,7 @@ init([Host, Port, Database, User, Password, Options]) ->
     Cmd = lists:flatten(io_lib:format("~s ~s ~w ~s ~s ~s ~s",
                                       [helper(), Host, Port, Database,
                                        User, Password, Options])),
-    Ref = open_port({spawn, Cmd}, [{packet, 4}]),
+    Ref = open_port({spawn, Cmd}, [{packet, 4}, binary]),
     {ok, #state{ref = Ref}}.
 
 terminate(#port_closed{reason = Reason}, #state{ref = Ref}) ->
@@ -69,7 +71,10 @@ helper() ->
 
 handle_query(Ref, Query) ->
     io:format("DEBUG: got query: ~p~n", [Query]),
-    port_command(Ref, [?QUERY_MSG | Query]),
+    make_request(Ref, {sql_query, Query}).
+
+make_request(Ref, Req) ->
+    port_command(Ref, term_to_binary(Req)),
     receive
         {Ref, {data, Res}} -> {ok, Res};
         Other ->
