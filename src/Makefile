@@ -1,4 +1,6 @@
-CFLAGS =	-I/usr/local/mysql/include -O2 -g -Wall -Werror
+CFLAGS =	-I/usr/local/mysql/include \
+		-I$(HOME)/lib/erlang/lib/erl_interface-3.5.5.3/include \
+		-O2 -g -Wall -Werror
 LDFLAGS =	-L/usr/local/mysql/lib
 EFLAGS =	-W +debug_info
 
