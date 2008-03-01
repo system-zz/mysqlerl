@@ -1,4 +1,5 @@
 %% -*- Erlang -*-
+%% Copyright (C) 2008, Brian Cully
 
 {application, mysqlerl,
  [{description, "mysqlerl"},
