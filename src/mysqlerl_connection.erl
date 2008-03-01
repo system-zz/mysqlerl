@@ -3,10 +3,13 @@
 
 -behavior(gen_server).
 
--export([start_link/6, stop/1, sql_query/3, testmsg/1]).
+-export([start_link/6, stop/1, sql_query/3]).
 
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
+
+-define(QUERY_MSG, 0).
+-define(EXTENDED_MSG, 255).
 
 -record(state, {ref}).
 -record(port_closed, {reason}).
@@ -21,9 +24,6 @@ stop(Pid) ->
 
 sql_query(Pid, Query, Timeout) ->
     gen_server:call(Pid, #sql_query{q = Query}, Timeout).
-
-testmsg(Pid) ->
-    gen_server:call(Pid, {test, "SELECT COUNT(*) FROM user;"}).
 
 init([Host, Port, Database, User, Password, Options]) ->
     process_flag(trap_exit, true),
@@ -47,8 +47,6 @@ code_change(_OldVsn, State, _Extra) ->
 
 handle_call(#sql_query{q = Query}, _From, State) ->
     {reply, handle_query(State#state.ref, Query), State};
-handle_call({test, Str}, _From, State) ->
-    {reply, handle_test(State#state.ref, Str), State};
 handle_call(Request, From, State) ->
     io:format("DEBUG: got unknown call from ~p: ~p~n", [From, Request]),
     {noreply, State}.
@@ -71,22 +69,11 @@ helper() ->
 
 handle_query(Ref, Query) ->
     io:format("DEBUG: got query: ~p~n", [Query]),
-    port_command(Ref, Query),
+    port_command(Ref, [?QUERY_MSG | Query]),
     receive
         {Ref, {data, Res}} -> {ok, Res};
         Other ->
             error_logger:warning_msg("Got unknown query response: ~p~n",
-                                     [Other]),
-            exit({badreply, Other})
-    end.
-
-handle_test(Ref, Str) ->
-    io:format("DEBUG: got test message: ~p~n", [Str]),
-    port_command(Ref, Str),
-    receive
-        {Ref, {data, Res}} -> {ok, Res};
-        Other ->
-            error_logger:warning_msg("Got unknown test response: ~p~n",
                                      [Other]),
             exit({badreply, Other})
     end.
