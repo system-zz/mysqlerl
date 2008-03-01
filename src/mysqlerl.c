@@ -18,9 +18,12 @@ const char *LOGPATH = "/tmp/mysqlerl.log";
 static FILE *logfile = NULL;
 
 typedef u_int32_t msglen_t;
-typedef enum { QUERY = 0 } msgtype_t;
+typedef enum { QUERY_MSG = 0, EXTENDED_MSG = 255 } msgtype_t;
+
 struct msg {
   msgtype_t type;
+  char *msg;
+  size_t msglen;
   char *buf;
 };
 typedef struct msg msg_t;
@@ -146,6 +149,10 @@ read_msg()
     exit(2);
   }
 
+  msg->type   = msg->buf[0];
+  msg->msg    = msg->buf + 1;
+  msg->msglen = len - 1;
+
   return msg;
 }
 
@@ -169,7 +176,8 @@ void
 dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
 {
   logmsg("DEBUG: dispatch_cmd(\"%s\")", msg->buf);
-  write_cmd(msg->buf, strlen(msg->buf));
+  logmsg("DEBUG: type: %d, msg: %s.\n", msg->type, msg->msg);
+  write_cmd(msg->msg, msg->msglen);
 }
 
 void
