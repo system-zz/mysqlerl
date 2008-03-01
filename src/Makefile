@@ -1,7 +1,9 @@
 CFLAGS =	-I/usr/local/mysql/include \
 		-I$(HOME)/lib/erlang/lib/erl_interface-3.5.5.3/include \
 		-O2 -g -Wall -Werror
-LDFLAGS =	-L/usr/local/mysql/lib
+LDFLAGS =	-L/usr/local/mysql/lib \
+		-L$(HOME)/lib/erlang/lib/erl_interface-3.5.5.3/lib \
+		-lerl_interface -lei
 EFLAGS =	-W +debug_info
 
 PRIVDIR =	../priv
