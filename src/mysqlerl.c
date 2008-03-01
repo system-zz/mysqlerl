@@ -39,14 +39,14 @@ logmsg(const char *format, ...)
   va_list args;
 
   if (logfile == NULL)
-    logfile = stderr;
+    out = stderr;
 
   va_start(args, format);
-  (void)vfprintf(logfile, format, args);
-  (void)fprintf(logfile, "\n");
+  (void)vfprintf(out, format, args);
+  (void)fprintf(out, "\n");
   va_end(args);
 
-  fflush(logfile);
+  fflush(out);
 }
 
 int
@@ -135,16 +135,19 @@ write_cmd(const char *cmd, msglen_t len)
   msglen_t nlen;
 
   nlen = htonl(len + 3);
-  restartable_write((char *)&nlen, sizeof(nlen));
-  restartable_write(" - ", 3);
-  restartable_write(cmd, len);
+  if (restartable_write((char *)&nlen, sizeof(nlen)) == -1)
+    return -1;
+  if (restartable_write(" - ", 3) == -1)
+    return -1;
+  if (restartable_write(cmd, len) == -1)
+    return -1;
+
+  return 0;
 }
 
 void
 dispatch_db_cmd(MYSQL *dbh, const char *cmd)
 {
-  msglen_t len, nlen;
-
   logmsg("DEBUG: dispatch_cmd(\"%s\")", cmd);
   write_cmd(cmd, strlen(cmd));
 }
