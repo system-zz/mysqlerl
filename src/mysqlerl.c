@@ -15,10 +15,15 @@
 #include <unistd.h>
 
 const char *LOGPATH = "/tmp/mysqlerl.log";
-const size_t BUFSIZE = 2048;
 static FILE *logfile = NULL;
 
 typedef u_int32_t msglen_t;
+typedef enum { QUERY = 0 } msgtype_t;
+struct msg {
+  msgtype_t type;
+  char *buf;
+};
+typedef struct msg msg_t;
 
 void
 openlog()
@@ -97,11 +102,18 @@ restartable_write(const char *buf, size_t buflen)
   return rc;
 }
 
-char *
-read_cmd()
+msg_t *
+read_msg()
 {
-  char *buf;
+  msg_t *msg;
   msglen_t len;
+
+  msg = (msg_t *)malloc(sizeof(msg_t));
+  if (msg == NULL) {
+    logmsg("ERROR: Couldn't allocate message for reading: %s.\n",
+           strerror(errno));
+    exit(2);
+  }
 
   logmsg("DEBUG: reading message length.");
   if (restartable_read((char *)&len, sizeof(len)) == -1) {
@@ -111,22 +123,22 @@ read_cmd()
   }
   len = ntohl(len);
 
-  buf = malloc(len);
-  if (buf == NULL) {
+  msg->buf = malloc(len);
+  if (msg->buf == NULL) {
     logmsg("ERROR: Couldn't malloc %d bytes: %s.", len,
            strerror(errno));
     exit(2);
   }
-  memset(buf, 0, BUFSIZE);
+  memset(msg->buf, 0, len);
 
   logmsg("DEBUG: reading message body (len: %d).", len);
-  if (restartable_read(buf, len) == -1) {
+  if (restartable_read(msg->buf, len) == -1) {
     logmsg("ERROR: couldn't read %d byte message: %s.",
            len, strerror(errno));
     exit(2);
   }
 
-  return buf;
+  return msg;
 }
 
 int
@@ -146,10 +158,10 @@ write_cmd(const char *cmd, msglen_t len)
 }
 
 void
-dispatch_db_cmd(MYSQL *dbh, const char *cmd)
+dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
 {
-  logmsg("DEBUG: dispatch_cmd(\"%s\")", cmd);
-  write_cmd(cmd, strlen(cmd));
+  logmsg("DEBUG: dispatch_cmd(\"%s\")", msg->buf);
+  write_cmd(msg->buf, strlen(msg->buf));
 }
 
 void
@@ -163,7 +175,8 @@ int
 main(int argc, char *argv[])
 {
   MYSQL dbh;
-  char *host, *port, *db_name, *user, *passwd, *cmd;
+  char *host, *port, *db_name, *user, *passwd;
+  msg_t *msg;
 
   openlog();
   logmsg("INFO: starting up.");
@@ -185,9 +198,12 @@ main(int argc, char *argv[])
     exit(2);
   }
 
-  while ((cmd = read_cmd()) != NULL) {
-    dispatch_db_cmd(&dbh, cmd);
-    free(cmd);
+  while ((msg = read_msg()) != NULL) {
+    dispatch_db_cmd(&dbh, msg);
+
+    /* XXX: Move this to function */
+    free(msg->buf);
+    free(msg);
   }
 
   mysql_close(&dbh);
