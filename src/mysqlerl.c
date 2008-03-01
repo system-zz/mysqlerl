@@ -175,8 +175,16 @@ write_cmd(const char *cmd, msglen_t len)
 void
 dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
 {
-  logmsg("DEBUG: type: %d, msg: %s.", msg->type, msg->msg);
-  write_cmd(msg->msg, msg->msglen);
+  switch (msg->type) {
+  case QUERY_MSG:
+    logmsg("DEBUG: got query msg: %s.", msg->msg);
+    write_cmd(msg->msg, msg->msglen);
+    break;
+
+  default:
+    logmsg("WARNING: message type %d unknown.", msg->type);
+    exit(3);
+  }
 }
 
 void
