@@ -8,11 +8,6 @@
 -export([init/1, terminate/2, code_change/3,
          handle_call/3, handle_cast/2, handle_info/2]).
 
--define(QUERY_MSG, 0).
--define(COMMIT_MSG, 1).
--define(ROLLBACK_MSG, 2).
--define(EXTENDED_MSG, 255).
-
 -record(state, {ref}).
 -record(port_closed, {reason}).
 -record(sql_query, {q}).
