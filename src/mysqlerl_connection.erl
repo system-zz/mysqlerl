@@ -43,7 +43,7 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 handle_call(#sql_query{q = Query}, _From, State) ->
-    {reply, handle_query(State#state.ref, Query), State};
+    {reply, make_request(State#state.ref, {sql_query, Query}), State};
 handle_call(Request, From, State) ->
     io:format("DEBUG: got unknown call from ~p: ~p~n", [From, Request]),
     {noreply, State}.
@@ -63,10 +63,6 @@ helper() ->
         {error, bad_name} -> PrivDir = filename:join(["..", "priv"])
     end,
     filename:join([PrivDir, "mysqlerl"]).
-
-handle_query(Ref, Query) ->
-    io:format("DEBUG: got query: ~p~n", [Query]),
-    make_request(Ref, {sql_query, Query}).
 
 make_request(Ref, Req) ->
     port_command(Ref, term_to_binary(Req)),
