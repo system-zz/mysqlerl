@@ -112,6 +112,7 @@ read_msg()
   if (msg == NULL) {
     logmsg("ERROR: Couldn't allocate message for reading: %s.\n",
            strerror(errno));
+
     exit(2);
   }
 
@@ -119,22 +120,29 @@ read_msg()
   if (restartable_read((char *)&len, sizeof(len)) == -1) {
     logmsg("ERROR: couldn't read %d byte message prefix: %s.",
            sizeof(len), strerror(errno));
+
+    free(msg);
     exit(2);
   }
   len = ntohl(len);
 
-  msg->buf = malloc(len);
+  msg->buf = malloc(len + 1);
   if (msg->buf == NULL) {
     logmsg("ERROR: Couldn't malloc %d bytes: %s.", len,
            strerror(errno));
+
+    free(msg);
     exit(2);
   }
-  memset(msg->buf, 0, len);
+  msg->buf[len] = '\0';
 
   logmsg("DEBUG: reading message body (len: %d).", len);
   if (restartable_read(msg->buf, len) == -1) {
     logmsg("ERROR: couldn't read %d byte message: %s.",
            len, strerror(errno));
+
+    free(msg->buf);
+    free(msg);
     exit(2);
   }
 
