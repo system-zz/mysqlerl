@@ -1,3 +1,9 @@
+/*
+ * MySQL port driver.
+ *
+ * Copyright (C) 2008, Brian Cully <bjc@kublai.com>
+ */
+
 #include <mysql.h>
 
 #include <errno.h>
