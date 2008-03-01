@@ -17,9 +17,6 @@
          sql_query/2, sql_query/3]).
 
 -define(CONFIG, "/Users/bjc/tmp/test-server.cfg").
--define(NOTIMPLEMENTED, {error, {not_implemented,
-                                 "This function has only been stubbed "
-                                 "out for reference."}}).
 
 test_start() ->
     {ok, [{Host, Port, DB, User, Pass, Options}]} = file:consult(?CONFIG),
@@ -94,8 +91,8 @@ describe_table(Ref, Table) ->
 %% Returns:
 %%     {ok, Description} | {error, Reason}
 %%     Description = [{col_name(), odbc_data_type()}]
-describe_table(_Ref, _Table, _Timeout) ->
-    ?NOTIMPLEMENTED.
+describe_table(Ref, Table, Timeout) ->
+    gen_server:call(Ref, #sql_describe_table{table = Table}, Timeout).
 
 first(Ref) ->
     first(Ref, infinity).
@@ -106,8 +103,8 @@ first(Ref) ->
 %% Returns:
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
-first(_Ref, _Timeout) ->
-    ?NOTIMPLEMENTED.
+first(Ref, Timeout) ->
+    gen_server:call(Ref, #sql_first{}, Timeout).
 
 last(Ref) ->
     last(Ref, infinity).
@@ -118,8 +115,8 @@ last(Ref) ->
 %% Returns:
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
-last(_Ref, _Timeout) ->
-    ?NOTIMPLEMENTED.
+last(Ref, Timeout) ->
+    gen_server:call(Ref, #sql_last{}, Timeout).
 
 next(Ref) ->
     next(Ref, infinity).
@@ -130,8 +127,8 @@ next(Ref) ->
 %% Returns:
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
-next(_Ref, _Timeout) ->
-    ?NOTIMPLEMENTED.
+next(Ref, Timeout) ->
+    gen_server:call(Ref, #sql_next{}, Timeout).
 
 prev(Ref) ->
     prev(Ref, infinity).
@@ -142,8 +139,8 @@ prev(Ref) ->
 %% Returns:
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
-prev(_Ref, _Timeout) ->
-    ?NOTIMPLEMENTED.
+prev(Ref, Timeout) ->
+    gen_server:call(Ref, #sql_prev{}, Timeout).
 
 select_count(Ref, SQLQuery) ->
     select_count(Ref, SQLQuery, infinity).
@@ -155,8 +152,8 @@ select_count(Ref, SQLQuery) ->
 %% Returns:
 %%     {ok, NrRows} | {error, Reason}
 %%     NrRows = n_rows()
-select_count(_Ref, _SQLQuery, _Timeout) ->
-    ?NOTIMPLEMENTED.
+select_count(Ref, SQLQuery, Timeout) ->
+    gen_server:call(Ref, #sql_select_count{q = SQLQuery}, Timeout).
 
 select(Ref, Pos, N) ->
     select(Ref, Pos, N, infinity).
@@ -168,8 +165,8 @@ select(Ref, Pos, N) ->
 %% Returns:
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
-select(_Ref, _Pos, _N, _Timeout) ->
-    ?NOTIMPLEMENTED.
+select(Ref, Pos, N, Timeout) ->
+    gen_server:call(Ref, #sql_select{pos = Pos, n = N}, Timeout).
 
 param_query(Ref, SQLQuery, Params) ->
     param_query(Ref, SQLQuery, Params, infinity).
@@ -182,8 +179,9 @@ param_query(Ref, SQLQuery, Params) ->
 %% Returns:
 %%     {selected, ColNames, Rows} | {error, Reason}
 %%     Rows = rows()
-param_query(_Ref, _SQLQuery, _Params, _Timeout) ->
-    ?NOTIMPLEMENTED.
+param_query(Ref, SQLQuery, Params, Timeout) ->
+    gen_server:call(Ref, #sql_param_query{q = SQLQuery, params = Params},
+                    Timeout).
 
 sql_query(Ref, SQLQuery) ->
     sql_query(Ref, SQLQuery, infinity).

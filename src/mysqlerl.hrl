@@ -1,3 +1,11 @@
 -record(sql_query, {q}).
+-record(sql_param_query, {q, params}).
+-record(sql_select_count, {q}).
+-record(sql_select, {q, pos, n}).
+-record(sql_first, {}).
+-record(sql_last, {}).
+-record(sql_next, {}).
+-record(sql_prev, {}).
 -record(sql_commit, {}).
 -record(sql_rollback, {}).
+-record(sql_describe_table, {table}).
