@@ -24,7 +24,8 @@ test_start() ->
     mysqlerl:connect(Host, Port, DB, User, Pass, Options).
 
 test_msg() ->
-    mysqlerl_connection:testmsg(mysqlerl_connection_sup:random_child()).
+    commit(mysqlerl_connection_sup:random_child(),
+           rollback, 2000).
 
 start() ->
     start(temporary).
