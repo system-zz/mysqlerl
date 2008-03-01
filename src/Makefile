@@ -1,4 +1,4 @@
-CFLAGS =	-I/usr/local/mysql/include -O2 -g
+CFLAGS =	-I/usr/local/mysql/include -O2 -g -Wall -Werror
 LDFLAGS =	-L/usr/local/mysql/lib
 EFLAGS =	-W +debug_info
 
