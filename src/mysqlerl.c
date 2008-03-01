@@ -175,8 +175,7 @@ write_cmd(const char *cmd, msglen_t len)
 void
 dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
 {
-  logmsg("DEBUG: dispatch_cmd(\"%s\")", msg->buf);
-  logmsg("DEBUG: type: %d, msg: %s.\n", msg->type, msg->msg);
+  logmsg("DEBUG: type: %d, msg: %s.", msg->type, msg->msg);
   write_cmd(msg->msg, msg->msglen);
 }
 
