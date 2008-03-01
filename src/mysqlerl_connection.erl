@@ -45,15 +45,10 @@ terminate(Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-handle_call({test, Str}, _From, #state{ref = Ref} = State) ->
-    io:format("DEBUG: got test message: ~p~n", [Str]),
-    port_command(Ref, Str),
-    receive
-        {Ref, {data, Res}} ->
-            {reply, {ok, Res}, State};
-        Other ->
-            error_logger:warning_msg("Got unknown message: ~p~n", [Other])
-    end;
+handle_call(#sql_query{q = Query}, _From, State) ->
+    {reply, handle_query(State#state.ref, Query), State};
+handle_call({test, Str}, _From, State) ->
+    {reply, handle_test(State#state.ref, Str), State};
 handle_call(Request, From, State) ->
     io:format("DEBUG: got unknown call from ~p: ~p~n", [From, Request]),
     {noreply, State}.
@@ -73,3 +68,25 @@ helper() ->
         {error, bad_name} -> PrivDir = filename:join(["..", "priv"])
     end,
     filename:join([PrivDir, "mysqlerl"]).
+
+handle_query(Ref, Query) ->
+    io:format("DEBUG: got query: ~p~n", [Query]),
+    port_command(Ref, Query),
+    receive
+        {Ref, {data, Res}} -> {ok, Res};
+        Other ->
+            error_logger:warning_msg("Got unknown query response: ~p~n",
+                                     [Other]),
+            {badreply, Other}
+    end.
+
+handle_test(Ref, Str) ->
+    io:format("DEBUG: got test message: ~p~n", [Str]),
+    port_command(Ref, Str),
+    receive
+        {Ref, {data, Res}} -> {ok, Res};
+        Other ->
+            error_logger:warning_msg("Got unknown test response: ~p~n",
+                                     [Other]),
+            {badreply, Other}
+    end.
