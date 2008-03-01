@@ -11,7 +11,8 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 connect(Host, Port, Database, User, Password, Options) ->
-    supervisor:start_child(?MODULE, [Host, Port, Database, User, Password, Options]).
+    supervisor:start_child(?MODULE, [Host, Port, Database,
+                                     User, Password, Options]).
 
 random_child() ->
     case get_pids() of
