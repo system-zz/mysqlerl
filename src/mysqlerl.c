@@ -159,10 +159,8 @@ write_cmd(const char *cmd, msglen_t len)
 {
   msglen_t nlen;
 
-  nlen = htonl(len + 3);
+  nlen = htonl(len);
   if (restartable_write((unsigned char *)&nlen, sizeof(nlen)) == -1)
-    return -1;
-  if (restartable_write((unsigned char *)" - ", 3) == -1)
     return -1;
   if (restartable_write((unsigned char *)cmd, len) == -1)
     return -1;
@@ -177,15 +175,25 @@ dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
 
   tag = erl_element(1, msg->cmd);
   if (strncmp((char *)ERL_ATOM_PTR(tag), QUERY_MSG, sizeof(QUERY_MSG)) == 0) {
-    ETERM *query;
-    char *q;
+    ETERM *query, *resp;
+    char *q, *buf;
+    int buflen;
+
     query = erl_element(2, msg->cmd);
     q = erl_iolist_to_string(query);
     erl_free_term(query);
 
     logmsg("DEBUG: got query msg: %s.", q);
-    write_cmd(q, strlen(q));
+    resp = erl_format("{ok, ~s}", q);
     erl_free(q);
+
+    buflen = erl_term_len(resp);
+    buf = (char *)malloc(buflen);
+    erl_encode(resp, (unsigned char *)buf);
+    erl_free_term(resp);
+
+    write_cmd(buf, buflen);
+    free(buf);
   } else {
     logmsg("WARNING: message type %s unknown.", (char *)ERL_ATOM_PTR(tag));
     erl_free_term(tag);

@@ -76,7 +76,7 @@ handle_query(Ref, Query) ->
 make_request(Ref, Req) ->
     port_command(Ref, term_to_binary(Req)),
     receive
-        {Ref, {data, Res}} -> {ok, Res};
+        {Ref, {data, Res}} -> binary_to_term(Res);
         Other ->
             error_logger:warning_msg("Got unknown query response: ~p~n",
                                      [Other]),
