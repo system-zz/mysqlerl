@@ -13,7 +13,9 @@ stop([]) ->
     ok.
 
 init([]) ->
-    ConnectionSup = {mysqlerl_connection_sup, {mysqlerl_connection_sup, start_link, []},
-                     permanent, infinity, supervisor, [mysqlerl_connection_sup]},
+    ConnectionSup = {mysqlerl_connection_sup,
+                     {mysqlerl_connection_sup, start_link, []},
+                     permanent, infinity, supervisor,
+                     [mysqlerl_connection_sup]},
     {ok, {{one_for_one, 10, 5},
           [ConnectionSup]}}.
