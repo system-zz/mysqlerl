@@ -1,0 +1,6 @@
+*~
+*.o
+*.beam
+mysqlerl
+ebin/*
+priv/*
