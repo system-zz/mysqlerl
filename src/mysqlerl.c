@@ -4,6 +4,8 @@
  * Copyright (C) 2008, Brian Cully <bjc@kublai.com>
  */
 
+#include <erl_interface.h>
+#include <ei.h>
 #include <mysql.h>
 
 #include <errno.h>
@@ -18,7 +20,9 @@ const char *LOGPATH = "/tmp/mysqlerl.log";
 static FILE *logfile = NULL;
 
 typedef u_int32_t msglen_t;
-typedef enum { QUERY_MSG = 0, EXTENDED_MSG = 255 } msgtype_t;
+typedef enum {
+  QUERY_MSG = 0, COMMIT_MSG = 1, ROLLBACK_MSG = 2, EXTENDED_MSG = 255
+} msgtype_t;
 
 struct msg {
   msgtype_t type;
