@@ -77,7 +77,7 @@ handle_query(Ref, Query) ->
         Other ->
             error_logger:warning_msg("Got unknown query response: ~p~n",
                                      [Other]),
-            {badreply, Other}
+            exit({badreply, Other})
     end.
 
 handle_test(Ref, Str) ->
@@ -88,5 +88,5 @@ handle_test(Ref, Str) ->
         Other ->
             error_logger:warning_msg("Got unknown test response: ~p~n",
                                      [Other]),
-            {badreply, Other}
+            exit({badreply, Other})
     end.
