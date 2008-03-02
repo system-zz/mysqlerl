@@ -199,22 +199,29 @@ handle_sql_query(MYSQL *dbh, ETERM *cmd)
       cols = (ETERM **)malloc(num_fields * sizeof(ETERM *));
       for (i = 0; i < num_fields; i++) {
         logmsg("DEBUG: cols[%d]: %s", i, fields[i].name);
-        cols[i] = erl_format("~s", fields[i].name);
+        cols[i] = erl_mk_string(fields[i].name);
       }
       ecols = erl_mk_list(cols, num_fields);
 
       num_rows = mysql_num_rows(result);
       rows = (ETERM **)malloc(num_rows * sizeof(ETERM *));
       for (i = 0; i < num_rows; i++) {
-        MYSQL_ROW row;
         ETERM **rowtup, *rt;
+        unsigned long *lengths;
+        MYSQL_ROW row;
         unsigned int j;
 
         row = mysql_fetch_row(result);
+        lengths = mysql_fetch_lengths(result);
+
         rowtup = (ETERM **)malloc(num_fields * sizeof(ETERM *));
         for (j = 0; j < num_fields; j++) {
-          logmsg("DEBUG: rows[%d][%d]: %s", i, j, row[j]);
-          rowtup[j] = erl_format("~s", row[j]);
+          logmsg("DEBUG: rows[%d][%d] (%d): '%s'", i, j, lengths[j], row[j]);
+          if (row[j])
+            rowtup[j] = erl_mk_estring(row[j], lengths[j]);
+          else
+            rowtup[j] = erl_mk_atom("NULL");
+          logmsg("DEBUG: rowtup[%d]: %d", j, rowtup[j]);
         }
         logmsg("DEBUG: making tuple of %d", num_fields);
         rt = erl_mk_tuple(rowtup, num_fields);
@@ -222,15 +229,19 @@ handle_sql_query(MYSQL *dbh, ETERM *cmd)
           logmsg("ERROR: couldn't allocate %d-tuple", num_fields);
           exit(3);
         }
+        logmsg("DEBUG: copying rt");
         rows[i] = erl_format("~w", rt);
 
+        logmsg("DEBUG: freeing row fields");
         for (j = 0; j < num_fields; j++)
-          erl_free_term(rowtup[i]);
+          erl_free_term(rowtup[j]);
         free(rowtup);
         erl_free_term(rt);
       }
+      logmsg("DEBUG: making row list");
       erows = erl_mk_list(rows, num_rows);
 
+      logmsg("DEBUG: preparing response");
       resp = erl_format("{selected, ~w, ~w}",
                         ecols, erows);
 
@@ -253,6 +264,7 @@ handle_sql_query(MYSQL *dbh, ETERM *cmd)
   }
   erl_free(q);
 
+  logmsg("DEBUG: prepping buffers and sending.");
   buflen = erl_term_len(resp);
   buf = (char *)malloc(buflen);
   erl_encode(resp, (unsigned char *)buf);
