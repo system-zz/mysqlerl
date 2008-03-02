@@ -55,10 +55,16 @@ commit(Ref, CommitMode) ->
 %%              common_reason()
 %%     ok | {error, Reason}
 commit(Ref, commit, Timeout) ->
-    gen_server:call(Ref, #sql_commit{}, Timeout);
+    case sql_query(Ref, "COMMIT", Timeout) of
+        {num_rows, _} -> ok;
+        Other -> Other
+    end;
 commit(Ref, rollback, Timeout) ->
-    gen_server:call(Ref, #sql_rollback{}, Timeout).
-
+    case sql_query(Ref, "ROLLBACK", Timeout) of
+        {num_rows, _} -> ok;
+        Other -> Other
+    end.
+    
 %% Arguments:
 %%     Host = string()
 %%     Port = integer()
@@ -95,7 +101,7 @@ describe_table(Ref, Table) ->
 %%     Description = [{col_name(), odbc_data_type()}]
 describe_table(Ref, Table, Timeout) ->
     Q = ["DESCRIBE ", Table],
-    {selected, _, Rows} = gen_server:call(Ref, #sql_query{q = Q}, Timeout),
+    {selected, _, Rows} = sql_query(Ref, Q, Timeout),
     Description = [{Name, convert_type(T)} || {Name, T, _, _, _, _} <- Rows],
     {ok, Description}.
 
