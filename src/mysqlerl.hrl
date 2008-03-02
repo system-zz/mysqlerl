@@ -6,5 +6,3 @@
 -record(sql_last, {}).
 -record(sql_next, {}).
 -record(sql_prev, {}).
--record(sql_commit, {}).
--record(sql_rollback, {}).

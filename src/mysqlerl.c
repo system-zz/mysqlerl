@@ -20,8 +20,6 @@ const char *LOGPATH = "/tmp/mysqlerl.log";
 static FILE *logfile = NULL;
 
 const char *QUERY_MSG = "sql_query";
-const char *COMMIT_MSG = "sql_commit";
-const char *ROLLBACK_MSG = "sql_rollback";
 
 typedef u_int32_t msglen_t;
 
@@ -274,38 +272,6 @@ handle_sql_query(MYSQL *dbh, ETERM *cmd)
 }
 
 void
-handle_sql_commit(MYSQL *dbh, ETERM *cmd)
-{
-  ETERM *resp;
-  char *buf;
-  int buflen;
-
-  resp = erl_format("{ok, commit}");
-  buflen = erl_term_len(resp);
-  buf = (char *)malloc(buflen);
-  erl_encode(resp, (unsigned char *)buf);
-  erl_free_term(resp);
-  write_cmd(buf, buflen);
-  free(buf);
-}
-
-void
-handle_sql_rollback(MYSQL *dbh, ETERM *cmd)
-{
-  ETERM *resp;
-  char *buf;
-  int buflen;
-
-  resp = erl_format("{ok, rollback}");
-  buflen = erl_term_len(resp);
-  buf = (char *)malloc(buflen);
-  erl_encode(resp, (unsigned char *)buf);
-  erl_free_term(resp);
-  write_cmd(buf, buflen);
-  free(buf);
-}
-
-void
 dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
 {
   ETERM *tag;
@@ -314,12 +280,6 @@ dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
   if (strncmp((char *)ERL_ATOM_PTR(tag),
               QUERY_MSG, strlen(QUERY_MSG)) == 0) {
     handle_sql_query(dbh, msg->cmd);
-  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
-                     COMMIT_MSG, strlen(COMMIT_MSG)) == 0) {
-    handle_sql_commit(dbh, msg->cmd);
-  } else if (strncmp((char *)ERL_ATOM_PTR(tag),
-                     ROLLBACK_MSG, strlen(ROLLBACK_MSG)) == 0) {
-    handle_sql_rollback(dbh, msg->cmd);
   } else {
     logmsg("WARNING: message type %s unknown.", (char *)ERL_ATOM_PTR(tag));
     erl_free_term(tag);
