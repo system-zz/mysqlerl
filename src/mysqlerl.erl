@@ -209,13 +209,19 @@ convert_type("int") ->
     sql_integer;
 convert_type("int(" ++ Rest) ->
     Size = find_data_size(Rest),
-    {sql_numeric, Size};
+    {sql_numeric, list_to_integer(Size)};
+convert_type("decimal(" ++ Rest) ->
+    Size = find_data_size(Rest),
+    {sql_decimal, list_to_integer(Size)};
+convert_type("float(" ++ Rest) ->
+    Size = find_data_size(Rest),
+    {sql_float, list_to_float(Size)};
 convert_type("char(" ++ Rest) ->
     Size = find_data_size(Rest),
-    {sql_char, Size};
+    {sql_char, list_to_integer(Size)};
 convert_type("varchar(" ++ Rest) ->
     Size = find_data_size(Rest),
-    {sql_varchar, Size}.
+    {sql_varchar, list_to_integer(Size)}.
 
 find_data_size(Str) ->
     find_data_size(Str, []).
