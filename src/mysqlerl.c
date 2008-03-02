@@ -182,7 +182,70 @@ handle_sql_query(MYSQL *dbh, ETERM *cmd)
   erl_free_term(query);
 
   logmsg("DEBUG: got query msg: %s.", q);
-  resp = erl_format("{query, 1}", q);
+  if (mysql_query(dbh, q)) {
+    resp = erl_format("{error, {mysql_error, ~i, ~s}}",
+                      mysql_errno(dbh), mysql_error(dbh));
+  } else {
+    MYSQL_RES *result;
+
+    result = mysql_store_result(dbh);
+    if (result) {
+      MYSQL_FIELD *fields;
+      unsigned int i, num_fields, num_rows;
+      ETERM **cols, *ecols, **rows, *erows;
+
+      num_fields = mysql_num_fields(result);
+      fields = mysql_fetch_fields(result);
+      cols = (ETERM **)malloc(num_fields * sizeof(ETERM *));
+      for (i = 0; i < num_fields; i++) {
+        logmsg("DEBUG: cols[%d]: %s", i, fields[i].name);
+        cols[i] = erl_format("~s", fields[i].name);
+      }
+      ecols = erl_mk_list(cols, num_fields);
+
+      num_rows = mysql_num_rows(result);
+      rows = (ETERM **)malloc(num_rows * sizeof(ETERM *));
+      for (i = 0; i < num_rows; i++) {
+        MYSQL_ROW row;
+        ETERM **rowtup, *rt;
+        unsigned int j;
+
+        row = mysql_fetch_row(result);
+        rowtup = (ETERM **)malloc(num_fields * sizeof(ETERM *));
+        for (j = 0; j < num_fields; j++) {
+          logmsg("DEBUG: rows[%d][%d]: %s", i, j, row[j]);
+          rowtup[i] = erl_format("~s", row[j]);
+        }
+        rt = erl_mk_tuple(rowtup, num_fields);
+        rows[i] = erl_format("~w", rt);
+
+        for (j = 0; j < num_fields; j++)
+          erl_free_term(rowtup[i]);
+        free(rowtup);
+        erl_free_term(rt);
+      }
+      erows = erl_mk_list(rows, num_rows);
+
+      resp = erl_format("{selected, ~w, ~w}",
+                        ecols, erows);
+
+      for (i = 0; i < num_fields; i++)
+        erl_free_term(cols[i]);
+      free(cols);
+      erl_free_term(ecols);
+
+      for (i = 0; i < num_rows; i++)
+        erl_free_term(rows[i]);
+      free(rows);
+      erl_free_term(erows);
+    } else {
+      if (mysql_field_count(dbh) == 0)
+        resp = erl_format("{num_rows, ~i}", mysql_affected_rows(dbh));
+      else
+        resp = erl_format("{error, {mysql_error, ~i, ~s}}",
+                          mysql_errno(dbh), mysql_error(dbh));
+    }
+  }
   erl_free(q);
 
   buflen = erl_term_len(resp);
