@@ -171,6 +171,61 @@ write_cmd(const char *cmd, msglen_t len)
 }
 
 void
+handle_sql_query(MYSQL *dbh, ETERM *cmd)
+{
+  ETERM *query, *resp;
+  char *q, *buf;
+  int buflen;
+
+  query = erl_element(2, cmd);
+  q = erl_iolist_to_string(query);
+  erl_free_term(query);
+
+  logmsg("DEBUG: got query msg: %s.", q);
+  resp = erl_format("{query, 1}", q);
+  erl_free(q);
+
+  buflen = erl_term_len(resp);
+  buf = (char *)malloc(buflen);
+  erl_encode(resp, (unsigned char *)buf);
+  erl_free_term(resp);
+  write_cmd(buf, buflen);
+  free(buf);
+}
+
+void
+handle_sql_commit(MYSQL *dbh, ETERM *cmd)
+{
+  ETERM *resp;
+  char *buf;
+  int buflen;
+
+  resp = erl_format("{ok, commit}");
+  buflen = erl_term_len(resp);
+  buf = (char *)malloc(buflen);
+  erl_encode(resp, (unsigned char *)buf);
+  erl_free_term(resp);
+  write_cmd(buf, buflen);
+  free(buf);
+}
+
+void
+handle_sql_rollback(MYSQL *dbh, ETERM *cmd)
+{
+  ETERM *resp;
+  char *buf;
+  int buflen;
+
+  resp = erl_format("{ok, rollback}");
+  buflen = erl_term_len(resp);
+  buf = (char *)malloc(buflen);
+  erl_encode(resp, (unsigned char *)buf);
+  erl_free_term(resp);
+  write_cmd(buf, buflen);
+  free(buf);
+}
+
+void
 dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
 {
   ETERM *tag;
@@ -178,50 +233,13 @@ dispatch_db_cmd(MYSQL *dbh, msg_t *msg)
   tag = erl_element(1, msg->cmd);
   if (strncmp((char *)ERL_ATOM_PTR(tag),
               QUERY_MSG, strlen(QUERY_MSG)) == 0) {
-    ETERM *query, *resp;
-    char *q, *buf;
-    int buflen;
-
-    query = erl_element(2, msg->cmd);
-    q = erl_iolist_to_string(query);
-    erl_free_term(query);
-
-    logmsg("DEBUG: got query msg: %s.", q);
-    resp = erl_format("{query, ~s}", q);
-    erl_free(q);
-
-    buflen = erl_term_len(resp);
-    buf = (char *)malloc(buflen);
-    erl_encode(resp, (unsigned char *)buf);
-    erl_free_term(resp);
-    write_cmd(buf, buflen);
-    free(buf);
+    handle_sql_query(dbh, msg->cmd);
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      COMMIT_MSG, strlen(COMMIT_MSG)) == 0) {
-    ETERM *resp;
-    char *buf;
-    int buflen;
-
-    resp = erl_format("{ok, commit}");
-    buflen = erl_term_len(resp);
-    buf = (char *)malloc(buflen);
-    erl_encode(resp, (unsigned char *)buf);
-    erl_free_term(resp);
-    write_cmd(buf, buflen);
-    free(buf);
+    handle_sql_commit(dbh, msg->cmd);
   } else if (strncmp((char *)ERL_ATOM_PTR(tag),
                      ROLLBACK_MSG, strlen(ROLLBACK_MSG)) == 0) {
-    ETERM *resp;
-    char *buf;
-    int buflen;
-
-    resp = erl_format("{ok, rollback}");
-    buflen = erl_term_len(resp);
-    buf = (char *)malloc(buflen);
-    erl_encode(resp, (unsigned char *)buf);
-    erl_free_term(resp);
-    write_cmd(buf, buflen);
-    free(buf);
+    handle_sql_rollback(dbh, msg->cmd);
   } else {
     logmsg("WARNING: message type %s unknown.", (char *)ERL_ATOM_PTR(tag));
     erl_free_term(tag);
