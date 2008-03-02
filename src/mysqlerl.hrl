@@ -8,4 +8,3 @@
 -record(sql_prev, {}).
 -record(sql_commit, {}).
 -record(sql_rollback, {}).
--record(sql_describe_table, {table}).
