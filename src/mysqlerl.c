@@ -214,9 +214,14 @@ handle_sql_query(MYSQL *dbh, ETERM *cmd)
         rowtup = (ETERM **)malloc(num_fields * sizeof(ETERM *));
         for (j = 0; j < num_fields; j++) {
           logmsg("DEBUG: rows[%d][%d]: %s", i, j, row[j]);
-          rowtup[i] = erl_format("~s", row[j]);
+          rowtup[j] = erl_format("~s", row[j]);
         }
+        logmsg("DEBUG: making tuple of %d", num_fields);
         rt = erl_mk_tuple(rowtup, num_fields);
+        if (rt == NULL) {
+          logmsg("ERROR: couldn't allocate %d-tuple", num_fields);
+          exit(3);
+        }
         rows[i] = erl_format("~w", rt);
 
         for (j = 0; j < num_fields; j++)
