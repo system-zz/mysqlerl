@@ -6,6 +6,8 @@
 
 -include("mysqlerl.hrl").
 
+-export([convert_type/1]).
+
 -export([test_start/0, test_msg/0]).
 
 -export([start/0, start/1, stop/0, commit/2, commit/3,
@@ -92,7 +94,10 @@ describe_table(Ref, Table) ->
 %%     {ok, Description} | {error, Reason}
 %%     Description = [{col_name(), odbc_data_type()}]
 describe_table(Ref, Table, Timeout) ->
-    gen_server:call(Ref, #sql_describe_table{table = Table}, Timeout).
+    Q = ["DESCRIBE ", Table],
+    {selected, _, Rows} = gen_server:call(Ref, #sql_query{q = Q}, Timeout),
+    Description = [{Name, convert_type(T)} || {Name, T, _, _, _, _} <- Rows],
+    {ok, Description}.
 
 first(Ref) ->
     first(Ref, infinity).
@@ -195,3 +200,27 @@ sql_query(Ref, SQLQuery) ->
 %%     Rows = rows()
 sql_query(Ref, SQLQuery, Timeout) ->
     gen_server:call(Ref, #sql_query{q = SQLQuery}, Timeout).
+
+%% Convert type needs some love! Cover all bases here instead of
+%% fudging.
+convert_type("timestamp") ->
+    sql_timestamp;
+convert_type("int") ->
+    sql_integer;
+convert_type("int(" ++ Rest) ->
+    Size = find_data_size(Rest),
+    {sql_numeric, Size};
+convert_type("char(" ++ Rest) ->
+    Size = find_data_size(Rest),
+    {sql_char, Size};
+convert_type("varchar(" ++ Rest) ->
+    Size = find_data_size(Rest),
+    {sql_varchar, Size}.
+
+find_data_size(Str) ->
+    find_data_size(Str, []).
+
+find_data_size([$) | _Rest], Accum) ->
+    lists:reverse(Accum);
+find_data_size([H | T], Accum) ->
+    find_data_size(T, [H | Accum]).
