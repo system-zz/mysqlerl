@@ -35,18 +35,18 @@ const char *TIMESTAMP_SQL = "sql_timestamp";
 const char *INTEGER_SQL   = "sql_integer";
 
 MYSQL dbh;
-MYSQL_RES *results = NULL;
+MYSQL_STMT *sth = NULL;
 my_ulonglong resultoffset = 0, numrows = 0;
 
 void
-set_mysql_results()
+set_mysql_results(MYSQL_STMT *new_sth)
 {
-  if (results)
-    mysql_free_result(results);
-  results = mysql_store_result(&dbh);
-
+  if (sth) {
+    numrows = 0;
+    mysql_stmt_free_result(sth);
+  }
   resultoffset = 0;
-  numrows = results ? mysql_num_rows(results) : 0;
+  numrows = mysql_stmt_store_result(sth) ? mysql_stmt_num_rows(sth) : 0;
 }
 
 ETERM *
@@ -125,7 +125,7 @@ make_rows(unsigned int num_rows, unsigned int num_fields)
     unsigned long *lengths;
     MYSQL_ROW row;
 
-    row = mysql_fetch_row(results);
+    row = mysql_stmt_fetch(sth);
     resultoffset++;
     lengths = mysql_fetch_lengths(results);
 
@@ -150,7 +150,7 @@ handle_mysql_result()
   ETERM *ecols, *erows, *resp;
   unsigned int num_fields;
 
-  num_fields = mysql_num_fields(results);
+  num_fields = mysql_stmt_field_count(results);
   fields     = mysql_fetch_fields(results);
 
   ecols = make_cols(fields, num_fields);
@@ -210,6 +210,7 @@ void
 handle_query(ETERM *cmd)
 {
   ETERM *query, *resp;
+  MYSQL_STMT *handle;
   char *q;
 
   query = erl_element(2, cmd);
@@ -217,23 +218,30 @@ handle_query(ETERM *cmd)
   erl_free_term(query);
 
   logmsg("DEBUG: got query msg: %s.", q);
-  if (mysql_query(&dbh, q)) {
+  handle = mysql_stmt_init(&dbh);
+  if (mysql_stmt_prepare(handle, q, strlen(q))) {
     resp = erl_format("{error, {mysql_error, ~i, ~s}}",
-                      mysql_errno(&dbh), mysql_error(&dbh));
+                      mysql_stmt_errno(handle), mysql_stmt_error(handle));
   } else {
-    set_mysql_results();
-    if (results) {
-      resp = handle_mysql_result(results);
-      set_mysql_results(NULL);
+    if (mysql_stmt_execute(handle)) {
+      resp = erl_format("{error, {mysql_error, ~i, ~s}}",
+                        mysql_stmt_errno(handle), mysql_stmt_error(handle));
     } else {
-      if (mysql_field_count(&dbh) == 0)
-        resp = erl_format("{updated, ~i}", mysql_affected_rows(&dbh));
-      else
-        resp = erl_format("{error, {mysql_error, ~i, ~s}}",
-                          mysql_errno(&dbh), mysql_error(&dbh));
+      set_mysql_results(handle);
+      if (results) {
+        resp = handle_mysql_result(results);
+        set_mysql_results(NULL);
+      } else {
+        if (mysql_field_count(&dbh) == 0)
+          resp = erl_format("{updated, ~i}", mysql_affected_rows(&dbh));
+        else
+          resp = erl_format("{error, {mysql_error, ~i, ~s}}",
+                            mysql_stmt_errno(handle), mysql_stmt_error(handle));
+      }
     }
   }
   erl_free(q);
+  mysql_stmt_close(handle);
 
   write_msg(resp);
   erl_free_term(resp);
@@ -259,7 +267,7 @@ void
 handle_param_query(ETERM *msg)
 {
   ETERM *query, *params, *p, *tmp, *resp;
-  MYSQL_STMT *sth;
+  MYSQL_STMT *handle;
   MYSQL_BIND *bind;
   char *q;
   int param_count, i;
@@ -273,12 +281,12 @@ handle_param_query(ETERM *msg)
 
   logmsg("DEBUG: got param query msg: %s.", q);
 
-  sth = mysql_stmt_init(&dbh);
-  if (mysql_stmt_prepare(sth, q, strlen(q))) {
+  handle = mysql_stmt_init(&dbh);
+  if (mysql_stmt_prepare(handle, q, strlen(q))) {
     resp = erl_format("{error, {mysql_error, ~i, ~s}}",
-                      mysql_errno(&dbh), mysql_error(&dbh));
+                      mysql_stmt_errno(handle), mysql_error(handle));
   } else {
-    param_count = mysql_stmt_param_count(sth);
+    param_count = mysql_stmt_param_count(handle);
     if (param_count != erl_length(params)) {
       resp = erl_format("{error, {mysql_error, -1, [expected_params, %d, got_params, %d]}}", param_count, erl_length(params));
     } else {
@@ -291,7 +299,7 @@ handle_param_query(ETERM *msg)
       memset(bind, 0, param_count * sizeof(MYSQL_BIND));
 
       for (i = 0, tmp = params;
-           (p = erl_hd(tmp)) != NULL && i < 1000;
+           i < param_count && (p = erl_hd(tmp)) != NULL;
            i++, tmp = erl_tl(tmp)) {
         ETERM *type, *value;
 
@@ -414,15 +422,15 @@ handle_param_query(ETERM *msg)
       }
       erl_free_term(params);
 
-      if (mysql_stmt_bind_param(sth, bind)) {
+      if (mysql_stmt_bind_param(handle, bind)) {
         resp = erl_format("{error, {mysql_error, ~i, ~s}}",
-                          mysql_errno(&dbh), mysql_error(&dbh));
+                          mysql_stmt_errno(handle), mysql_stmt_error(handle));
       } else {
-        if (mysql_stmt_execute(sth)) {
+        if (mysql_stmt_execute(handle)) {
           resp = erl_format("{error, {mysql_error, ~i, ~s}}",
-                            mysql_errno(&dbh), mysql_error(&dbh));
+                            mysql_stmt_errno(handle), mysql_stmt_error(handle));
         } else {
-          set_mysql_results();
+          set_mysql_results(handle);
           if (results) {
             resp = handle_mysql_result(results);
             set_mysql_results(NULL);
@@ -431,7 +439,7 @@ handle_param_query(ETERM *msg)
               resp = erl_format("{updated, ~i}", mysql_affected_rows(&dbh));
             else
               resp = erl_format("{error, {mysql_error, ~i, ~s}}",
-                                mysql_errno(&dbh), mysql_error(&dbh));
+                                mysql_stmt_errno(handle), mysql_stmt_error(handle));
           }
         }
       }
@@ -445,7 +453,7 @@ handle_param_query(ETERM *msg)
   }
   erl_free(q);
 
-  mysql_stmt_close(sth);
+  mysql_stmt_close(handle);
 
   write_msg(resp);
   erl_free_term(resp);
@@ -466,7 +474,7 @@ handle_select_count(ETERM *msg)
     resp = erl_format("{error, {mysql_error, ~i, ~s}}",
                       mysql_errno(&dbh), mysql_error(&dbh));
   } else {
-    set_mysql_results();
+    set_mysql_results(handle);
     if (results) {
       resp = erl_format("{ok, ~i}", numrows);
     } else {
